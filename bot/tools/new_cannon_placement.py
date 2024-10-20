@@ -16,15 +16,14 @@ from bot.consts import (
     SCORE,
     WEIGHT,
 )
-from bot.tools.grids import modify_two_by_two
+from bot.tools.grids import modify_two_by_two, modify_three_by_three
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.position import Point2
 
 from map_analyzer.MapData import MapData
 from map_analyzer.Pather import draw_circle
 
-if TYPE_CHECKING:
-    from ares import AresBot, ManagerMediator
+from ares import AresBot, ManagerMediator
 
 
 class WallData:
@@ -240,7 +239,7 @@ class WallCreation:
         # try to find a start point for the wall since we don't have one yet
         if not wall_start_point:
             wall_start_point = self._calculate_start_point(
-                cannon_placement, cannon_grid, {wall_start_point}
+                cannon_placement, cannon_grid, blacklist={cannon_placement}
             )
 
         # only run pathfinding if we have a start point
@@ -283,8 +282,9 @@ class WallCreation:
             blacklist = set()
 
         # ensure that positions in the blacklist can't be used
-        for pos in blacklist:
-            grid[pos] = np.inf
+        if blacklist:
+            for pos in blacklist:
+                grid[pos] = np.inf
 
         # find points in the pathing grid that are part of the terrain
         point = (int(cannon_placement[0]), int(cannon_placement[1]))
@@ -325,7 +325,7 @@ class WallCreation:
             Positions to avoid using in the wall.
         wall_closest_to : Optional[Point2]
             Point to place wall components near. Default is the bottom of the enemy main
-            base ramp (handled in BuildingPlacement).
+            base ramp
 
         Returns
         -------
@@ -333,6 +333,10 @@ class WallCreation:
             Information about the wall.
 
         """
+        # default to enemy main base ramp if we don't have a target
+        if not wall_closest_to:
+            wall_closest_to = self.mediator.get_enemy_ramp.bottom_center
+
         new_wall: WallData = WallData(enclose_position)
         grid, valid_blocks, invalid_blocks = self._get_grid_and_blocks(
             enclose_position, blocked_positions
@@ -358,7 +362,7 @@ class WallCreation:
     ) -> None:
         """Perform next steps for an existing wall.
 
-            - chewck whether the wall is completed
+            - check whether the wall is completed
             - change the walling path if needed and allowed
             - select the location and type of the next building to place
 
@@ -431,14 +435,17 @@ class WallCreation:
         -------
 
         """
+        if grid_override is None:
+            grid = self._generate_basic_walling_grid([wall.enclose_point])
+        else:
+            grid = grid_override
+
         # see if there's already a path in the given grid
         if self.map_data.clockwise_pathfind(
             start=wall.start_point,
             goal=wall.start_point,
             origin=wall.enclose_point,
-            grid=self.map_data.get_walling_grid()
-            if grid_override is None
-            else grid_override,
+            grid=grid,
         ):
             return True
         return False
@@ -474,7 +481,7 @@ class WallCreation:
                 enclose_position[1] + self.wall_grid_bound_size,
             ),
             terrain_height={self.ai.get_terrain_height(enclose_position)},
-            pathing_grid=grid,
+            pathing_grid=self.map_data.get_pyastar_grid(),
             avoid_positions=blocked_positions,
         )
         return grid, valid_blocks, invalid_blocks
@@ -540,7 +547,11 @@ class BuildingPlacement:
         """
         # get the grid and our boundaries
         grid = self.generate_convolution_grid(
-            x_bound, y_bound, terrain_height, pathing_grid, avoid_positions
+            x_bound,
+            y_bound,
+            terrain_height,
+            pathing_grid,
+            avoid_positions,
         )
         x_min, _x_max = x_bound
         y_min, _y_max = y_bound
@@ -618,8 +629,14 @@ class BuildingPlacement:
         #   the comment and the code disagreed
         if avoid_positions:
             for pos in avoid_positions:
-                if (x_min < pos[0] < x_max) and (y_min < pos[1] < y_max):
-                    modify_two_by_two(convolution_grid, pos, 0)
+                if (x_min + 1 < pos[0] < x_max - 1) and (
+                    y_min + 1 < pos[1] < y_max - 1
+                ):
+                    modify_three_by_three(
+                        convolution_grid,
+                        (pos[0] - x_min, pos[1] - y_min),
+                        1,
+                    )
 
         return convolution_grid
 
@@ -664,16 +681,14 @@ class BuildingPlacement:
 
         possible_positions = np.array(scores[max(scores)])
 
+        if not wall_closest_to:
+            wall_closest_to = self.mediator.get_enemy_ramp.bottom_center
+
         # get the position with the highest score that's closest to the designated point
         pylon_pos = possible_positions[
             np.argmin(
                 np.sum(
-                    (
-                        possible_positions - wall_closest_to
-                        if wall_closest_to
-                        else self.mediator.get_enemy_ramp.bottom_center
-                    )
-                    ** 2,
+                    (possible_positions - wall_closest_to) ** 2,
                     axis=1,
                 )
             )
@@ -764,6 +779,7 @@ class BuildingPlacement:
         if np.any(target_weight_cond):
             # convolve the region to find valid building placements
             blocks, non_blocks = self.perform_convolutions(
+                start_position=position,
                 x_bound=(
                     int(position.x - search_distance),
                     int(position.x + search_distance),

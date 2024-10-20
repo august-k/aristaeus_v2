@@ -6,7 +6,7 @@ from ares.consts import UnitRole
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.unit import Unit
 
-from bot.managers.cannon_rush_manager import CannonRushManager
+from bot.managers.new_cannon_rush_manager import CannonRushManager
 from bot.managers.combat_manager import CombatManager
 from bot.managers.oracle_manager import OracleManager
 from bot.managers.production_manager import ProductionManager

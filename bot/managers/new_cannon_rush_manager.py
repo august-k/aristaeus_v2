@@ -2,35 +2,20 @@
 from typing import Dict, Set, TYPE_CHECKING, Any, Union, List, Optional
 
 import numpy as np
-from sc2.ids.ability_id import AbilityId
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
-from sc2.position import Point2
+from sc2.position import Point2, Point3
 from sc2.unit import Unit
-from sc2.units import Units
 
 from ares.behaviors.combat import CombatManeuver
-from ares.consts import ManagerName, ManagerRequestType, UnitRole, UnitTreeQueryType
-from cython_extensions.units_utils import cy_closest_to, cy_sorted_by_distance_to
+from ares.consts import ManagerName, ManagerRequestType, UnitRole
+
 from ares.managers.manager import Manager
 from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
-from bot.tools.cannon_placement import CannonPlacement
 
-from bot.consts import (
-    BLOCKING,
-    DESIRABILITY_KERNEL,
-    FINAL_PLACEMENT,
-    INVALID_BLOCK,
-    LOCATION,
-    POINTS,
-    SCORE,
-    TYPE_ID,
-    WEIGHT,
-)
+
 from ares.behaviors.combat.individual import (
     KeepUnitSafe,
     PathUnitToTarget,
-    AttackTarget,
-    AMove,
 )
 
 from ares.managers.path_manager import MapData
@@ -70,13 +55,14 @@ class CannonRushManager(Manager, IManagerMediator):
         super(CannonRushManager, self).__init__(ai, config, mediator)
 
         self.custom_build_order_complete: bool = False
+        self.cannon_rush_complete: bool = False
 
         self.initial_cannon_placed: bool = False
         self.walls: Dict[str, WallData] = {}
-        # Key is the Probe's tag, value is the wall_id of the Wall it's assigned to.
+        # Key is the wall_id of the Wall, value is the  Probe's tag
         # It's allowed, although not recommended, to have multiple probes assigned to
         # the same wall.
-        self.probe_to_wall: Dict[int, str] = {}
+        self.wall_to_probe: Dict[str, int] = {}
         self.primary_wall_id: Optional[str] = None
 
         # cannon worker roles
@@ -87,7 +73,7 @@ class CannonRushManager(Manager, IManagerMediator):
         # TODO: load based on map
         self.initial_cannon = Point2((31, 99))
 
-    async def initialise(self) -> None:
+    def initialise(self) -> None:
         self.map_data: MapData = self.manager_mediator.get_map_data_object
         self.wall_creation: WallCreation = WallCreation(
             self.ai, self.map_data, self.manager_mediator
@@ -133,6 +119,8 @@ class CannonRushManager(Manager, IManagerMediator):
         -------
 
         """
+        # self.debug_coordinates()
+
         # don't do anything if the build order is still running
         if not self.ai.build_order_runner.build_completed:
             return
@@ -147,12 +135,7 @@ class CannonRushManager(Manager, IManagerMediator):
             )
 
             for worker in rusher_tags:
-                if worker.tag in self.probe_to_wall:
-                    # let the wall micro handle this probe
-                    self.perform_wall_micro(
-                        worker, self.walls[self.probe_to_wall[worker.tag]], grid
-                    )
-                else:
+                if not worker.orders:
                     # create and register a maneuver to keep this probe safe while
                     # pathing towards the initial cannon placement
                     self.ai.register_behavior(
@@ -193,7 +176,7 @@ class CannonRushManager(Manager, IManagerMediator):
             return True
 
         # get our first pylon at home
-        if len(structure_dict[UnitID.PYLON]) == 0:
+        if not self.ai.structure_present_or_pending(UnitID.PYLON):
             if self.ai.minerals >= 25:
                 if tag := self.build_structure_at_home_ramp(
                     structure_type=UnitID.PYLON,
@@ -201,7 +184,7 @@ class CannonRushManager(Manager, IManagerMediator):
                 ):
                     # assign this Probe to the primary wall
                     if self.primary_wall_id and self.primary_wall_id in self.walls:
-                        self.probe_to_wall[tag] = self.primary_wall_id
+                        self.wall_to_probe[self.primary_wall_id] = tag
         else:
             # build workers up to 16
             if self.ai.supply_workers + self.ai.already_pending(UnitID.PROBE) < 16:
@@ -265,6 +248,28 @@ class CannonRushManager(Manager, IManagerMediator):
             Whether this step should be considered completed.
 
         """
+        if self.ai.structure_type_build_progress(UnitID.PHOTONCANNON) >= 0.95:
+            return True
+
+        wall = self.walls[self.primary_wall_id]
+
+        # override wall update if we can place a cannon
+        if self.ai.tech_requirement_progress(
+            UnitID.PHOTONCANNON
+        ) == 1 and self.ai.state.psionic_matrix.covers(self.initial_cannon):
+            wall.set_next_building(
+                pos=self.initial_cannon,
+                type_id=UnitID.PHOTONCANNON,
+                wall_will_complete=False,
+            )
+        # place the next building
+        self.manager_mediator.build_with_specific_worker(
+            worker=self.ai.unit_tag_dict[self.wall_to_probe[self.primary_wall_id]],
+            structure_type=wall.next_building_type,
+            pos=wall.next_building_location,
+            assign_role=False,
+        )
+        return False
 
     def perform_wall_micro(self, probe: Unit, wall: WallData, grid: np.ndarray):
         """Given the Probe and wall it's supposed to build, execute related tasks."""
@@ -305,18 +310,33 @@ class CannonRushManager(Manager, IManagerMediator):
         -------
 
         """
-        # can't remove while iterating, no matter how many times I try
-        tags_to_remove = [
-            tag for tag in self.probe_to_wall if self.probe_to_wall[tag] == wall.wall_id
-        ]
-        for tag in tags_to_remove:
-            del self.probe_to_wall[tag]
+        del self.wall_to_probe[wall.wall_id]
 
         # no longer a primary wall since this one is being removed
         if wall.wall_id == self.primary_wall_id:
             self.primary_wall_id = None
 
         del self.walls[wall.wall_id]
+
+    def remove_unit(self, unit_tag: int) -> None:
+        """Remove a Wall from the tracking dictionaries.
+
+        Parameters
+        ----------
+        unit_tag : int
+            The tag of the unit we need to remove
+
+        Returns
+        -------
+
+        """
+        to_remove: List[str] = []
+        for wall_id in self.wall_to_probe:
+            if self.wall_to_probe[wall_id] == unit_tag:
+                to_remove.append(wall_id)
+
+        for wall_id in to_remove:
+            del self.walls[wall_id]
 
     @staticmethod
     def create_path_if_safe_maneuver(
@@ -341,5 +361,27 @@ class CannonRushManager(Manager, IManagerMediator):
         """
         probe_maneuver: CombatManeuver = CombatManeuver()
         probe_maneuver.add(KeepUnitSafe(unit=unit, grid=grid))
-        probe_maneuver.add(PathUnitToTarget(unit=unit, grid=grid, target=target))
+        probe_maneuver.add(
+            PathUnitToTarget(unit=unit, grid=grid, target=target, sensitivity=1)
+        )
         return probe_maneuver
+
+    def debug_coordinates(self):
+        """Draw coordinates on the screen."""
+        for i in range(
+            int(self.initial_cannon.x - 15), int(self.initial_cannon.x + 15)
+        ):
+            for j in range(
+                int(self.initial_cannon.y - 15), int(self.initial_cannon.y + 15)
+            ):
+                point = Point2((i, j))
+                height = self.ai.get_terrain_z_height(point)
+                p_min = Point3((point.x, point.y, height + 0.1))
+                p_max = Point3((point.x + 1, point.y + 1, height + 0.1))
+                self.ai.client.debug_box_out(p_min, p_max, Point3((0, 0, 127)))
+                if height >= 9:
+                    self.ai.client.debug_text_world(
+                        f"x={i}\ny={j}",
+                        Point3((p_min.x, p_min.y + 0.75, p_min.z)),
+                        (127, 0, 255),
+                    )
