@@ -157,8 +157,8 @@ class WallCreation:
         )
 
         # TODO: move these to the config or use function parameters
-        self.blocking_building_weight = 100
-        self.non_blocking_building_weight = 200
+        self.blocking_building_weight = 1
+        self.non_blocking_building_weight = 2
         self.wall_grid_bound_size = 20
         self.terrain_weight = 1
 
@@ -392,14 +392,19 @@ class WallCreation:
             wall.enclose_point, [wall.enclose_point]
         )
 
+        wall.set_new_wall_path(
+            self._find_wall_path(wall.enclose_point, grid, valid_blocks, invalid_blocks)
+        )
+
+        # path might be longer, but the old path may not wall anymore
         # see if a shorter walling path has become available
-        if check_for_better_wall:
-            if new_wall_path := self._find_wall_path(
-                wall.enclose_point, grid, valid_blocks, invalid_blocks, wall.start_point
-            ):
-                # there either wasn't a path before or the new one is shorter
-                if not wall.wall_path or len(new_wall_path) < len(wall.wall_path):
-                    wall.set_new_wall_path(new_wall_path)
+        # if check_for_better_wall:
+        #     if new_wall_path := self._find_wall_path(
+        #         wall.enclose_point, grid, valid_blocks, invalid_blocks
+        #     ):
+        #         # there either wasn't a path before or the new one is shorter
+        #         if not wall.wall_path or len(new_wall_path) < len(wall.wall_path):
+        #             wall.set_new_wall_path(new_wall_path)
 
         self._add_next_building(
             valid_blocks, invalid_blocks, wall, wall_closest_to, grid
@@ -453,7 +458,7 @@ class WallCreation:
     def _get_grid_and_blocks(
         self,
         enclose_position: Union[Point2, Tuple[int, int]],
-        blocked_positions: List[Union[Point2, Tuple[int, int]]],
+        blocked_positions: Optional[List[Union[Point2, Tuple[int, int]]]] = None,
     ):
         """Get the cannon walling grid and allowed Pylon placements.
 
@@ -461,7 +466,7 @@ class WallCreation:
         ----------
         enclose_position : Union[Point2, Tuple[int, int]]
             The position to wall off.
-        blocked_positions : List[Union[Point2, Tuple[int, int]]]
+        blocked_positions : Optional[List[Union[Point2, Tuple[int, int]]]]
             Positions to avoid using in the wall.
 
         Returns
@@ -632,7 +637,7 @@ class BuildingPlacement:
                 if (x_min + 1 < pos[0] < x_max - 1) and (
                     y_min + 1 < pos[1] < y_max - 1
                 ):
-                    modify_three_by_three(
+                    modify_two_by_two(
                         convolution_grid,
                         (pos[0] - x_min, pos[1] - y_min),
                         1,
@@ -742,7 +747,7 @@ class BuildingPlacement:
                         BLOCKING: blocking,
                         WEIGHT: self.hamming_lookup[d[pos]],
                     }
-            blocking = False
+            # blocking = False
         return scores
 
     def get_high_ground_point_near_position(

@@ -78,7 +78,10 @@ class CannonRushManager(Manager, IManagerMediator):
         self.wall_creation: WallCreation = WallCreation(
             self.ai, self.map_data, self.manager_mediator
         )
-        self.primary_wall_id = self.add_new_wall(enclose_position=self.initial_cannon)
+        self.primary_wall_id = self.add_new_wall(
+            enclose_position=self.initial_cannon,
+            blocked_positions=[self.initial_cannon],
+        )
 
     def manager_request(
         self,
@@ -368,6 +371,7 @@ class CannonRushManager(Manager, IManagerMediator):
 
     def debug_coordinates(self):
         """Draw coordinates on the screen."""
+        wall_path = set(self.walls[self.primary_wall_id].wall_path)
         for i in range(
             int(self.initial_cannon.x - 15), int(self.initial_cannon.x + 15)
         ):
@@ -375,6 +379,7 @@ class CannonRushManager(Manager, IManagerMediator):
                 int(self.initial_cannon.y - 15), int(self.initial_cannon.y + 15)
             ):
                 point = Point2((i, j))
+                color = (15, 255, 15) if point in wall_path else (127, 0, 255)
                 height = self.ai.get_terrain_z_height(point)
                 p_min = Point3((point.x, point.y, height + 0.1))
                 p_max = Point3((point.x + 1, point.y + 1, height + 0.1))
@@ -383,5 +388,5 @@ class CannonRushManager(Manager, IManagerMediator):
                     self.ai.client.debug_text_world(
                         f"x={i}\ny={j}",
                         Point3((p_min.x, p_min.y + 0.75, p_min.z)),
-                        (127, 0, 255),
+                        color,
                     )
