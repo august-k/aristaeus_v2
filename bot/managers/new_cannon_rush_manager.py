@@ -19,6 +19,7 @@ from ares.behaviors.combat.individual import (
 )
 
 from ares.managers.path_manager import MapData
+from bot.behaviors.construct_building import ConstructBuilding
 from bot.tools.new_cannon_placement import WallCreation, WallData
 
 if TYPE_CHECKING:
@@ -138,16 +139,15 @@ class CannonRushManager(Manager, IManagerMediator):
             )
 
             for worker in rusher_tags:
-                if not worker.orders:
-                    # create and register a maneuver to keep this probe safe while
-                    # pathing towards the initial cannon placement
-                    self.ai.register_behavior(
-                        self.create_path_if_safe_maneuver(
-                            unit=worker,
-                            grid=grid,
-                            target=self.initial_cannon,
-                        )
+                # create and register a maneuver to keep this probe safe while
+                # pathing towards the initial cannon placement
+                self.ai.register_behavior(
+                    self.create_path_if_safe_maneuver(
+                        unit=worker,
+                        grid=grid,
+                        target=self.initial_cannon,
                     )
+                )
             return
 
         # update walls
@@ -175,7 +175,7 @@ class CannonRushManager(Manager, IManagerMediator):
         """
         structure_dict = self.manager_mediator.get_own_structures_dict
         # if the forge is started, we're done with the build order
-        if UnitID.FORGE in structure_dict:
+        if self.ai.structure_present_or_pending(UnitID.FORGE):
             return True
 
         # get our first pylon at home
@@ -225,12 +225,7 @@ class CannonRushManager(Manager, IManagerMediator):
         """
         if worker := self.manager_mediator.select_worker(target_position=location):
             # assign first worker to cannons, subsequent workers to chaos
-            self.manager_mediator.assign_role(
-                tag=worker.tag,
-                role=self.cannon_placers
-                if structure_type == UnitID.PYLON
-                else self.chaos_probes,
-            )
+            self.manager_mediator.assign_role(tag=worker.tag, role=self.cannon_placers)
             self.manager_mediator.build_with_specific_worker(
                 worker=worker,
                 structure_type=structure_type,
@@ -271,6 +266,15 @@ class CannonRushManager(Manager, IManagerMediator):
             structure_type=wall.next_building_type,
             pos=wall.next_building_location,
             assign_role=False,
+        )
+
+        # keep the Probe doing stuff
+        self.ai.register_behavior(
+            self.create_path_if_safe_maneuver(
+                unit=self.ai.unit_tag_dict[self.wall_to_probe[self.primary_wall_id]],
+                grid=self.manager_mediator.get_ground_avoidance_grid,
+                target=self.initial_cannon,
+            )
         )
         return False
 
@@ -364,8 +368,14 @@ class CannonRushManager(Manager, IManagerMediator):
         """
         probe_maneuver: CombatManeuver = CombatManeuver()
         probe_maneuver.add(KeepUnitSafe(unit=unit, grid=grid))
+        probe_maneuver.add(ConstructBuilding(unit=unit))
         probe_maneuver.add(
-            PathUnitToTarget(unit=unit, grid=grid, target=target, sensitivity=1)
+            PathUnitToTarget(
+                unit=unit,
+                grid=grid,
+                target=target,
+                sensitivity=1,
+            )
         )
         return probe_maneuver
 
