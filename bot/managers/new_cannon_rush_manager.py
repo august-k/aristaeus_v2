@@ -126,7 +126,7 @@ class CannonRushManager(Manager, IManagerMediator):
         -------
 
         """
-        self.debug_coordinates()
+        # self.debug_coordinates()
 
         # don't do anything if the build order is still running
         if not self.ai.build_order_runner.build_completed:
