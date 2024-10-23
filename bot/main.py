@@ -1,11 +1,15 @@
 from typing import Optional
 
+from sc2.position import Point2
+from sc2.units import Units
+
 from ares import AresBot, Hub, ManagerMediator
 from ares.behaviors.macro import Mining
-from ares.consts import UnitRole
+from ares.consts import UnitRole, UnitTreeQueryType
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.unit import Unit
 
+from ares.managers.unit_memory_manager import UnitMemoryManager
 from bot.managers.new_cannon_rush_manager import CannonRushManager
 from bot.managers.combat_manager import CombatManager
 from bot.managers.oracle_manager import OracleManager
@@ -17,6 +21,7 @@ class MyBot(AresBot):
     combat_manager: CombatManager
     oracle_manager: OracleManager
     production_manager: ProductionManager
+    unit_memory_manager: UnitMemoryManager
 
     def __init__(self, game_step_override: Optional[int] = None):
         """Initiate custom bot
@@ -104,3 +109,43 @@ class MyBot(AresBot):
         await super(MyBot, self).on_unit_took_damage(unit, amount_damage_taken)
 
         self.oracle_manager.on_unit_took_damage(unit)
+
+    def psionic_matrix_covers(self, pos: Point2) -> bool:
+        """
+        Custom psionic matrix check.
+
+        python-sc2 version doesn't consider terrain height.
+
+        Parameters
+        ----------
+        pos : Point2
+            Point to check coverage for
+
+        Returns
+        -------
+        bool :
+            Whether the point is covered
+
+        """
+        if nearby_units := self.manager_hub.unit_memory_manager.units_in_range(
+            start_points=[pos],
+            distances=6.0,
+            query_tree=UnitTreeQueryType.AllOwn,
+        ):
+            pylons = Units(
+                [
+                    u
+                    for u in nearby_units[0]
+                    if u.type_id in {UnitID.PYLON, UnitID.WARPPRISMPHASING}
+                ],
+                self,
+            )
+            if (
+                pylons.filter(
+                    lambda u: u.build_progress == 1.0
+                    and self.get_terrain_height(pos) <= self.get_terrain_height(u)
+                ).amount
+                > 0
+            ):
+                return True
+        return False

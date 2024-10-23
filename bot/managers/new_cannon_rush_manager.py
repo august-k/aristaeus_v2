@@ -252,7 +252,7 @@ class CannonRushManager(Manager, IManagerMediator):
             Whether this step should be considered completed.
 
         """
-        if self.ai.structure_type_build_progress(UnitID.PHOTONCANNON) >= 0.95:
+        if self.ai.structure_type_build_progress(UnitID.PHOTONCANNON) >= 0.75:
             return True
 
         wall = self.walls[self.primary_wall_id]
@@ -451,3 +451,31 @@ class CannonRushManager(Manager, IManagerMediator):
                     role=self.chaos_probes
                 ).first
                 self.wall_to_probe[self.high_ground_wall_id] = worker.tag
+
+        high_ground_wall = self.walls[self.high_ground_wall_id]
+        worker = self.ai.unit_tag_dict[self.wall_to_probe[self.high_ground_wall_id]]
+
+        # override wall update if we can place a cannon
+        if self.ai.tech_requirement_progress(
+            UnitID.PHOTONCANNON
+        ) == 1 and self.ai.psionic_matrix_covers(high_ground_wall.enclose_point):
+            high_ground_wall.set_next_building(
+                pos=high_ground_wall.enclose_point,
+                type_id=UnitID.PHOTONCANNON,
+                wall_will_complete=False,
+            )
+
+        self.manager_mediator.build_with_specific_worker(
+            worker=worker,
+            structure_type=high_ground_wall.next_building_type,
+            pos=high_ground_wall.next_building_location,
+            assign_role=False,
+        )
+
+        self.ai.register_behavior(
+            self.create_path_if_safe_maneuver(
+                worker,
+                self.manager_mediator.get_ground_avoidance_grid,
+                target=high_ground_wall.enclose_point,
+            )
+        )

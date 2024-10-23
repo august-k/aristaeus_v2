@@ -94,8 +94,10 @@ class WallData:
         -------
 
         """
-        self.wall_path = new_path
-        self.start_point = new_path[0]
+        # don't overwrite the path if there isn't one now
+        if new_path:
+            self.wall_path = new_path
+            self.start_point = new_path[0]
 
     def set_next_building(
         self, pos: Point2, type_id: UnitID, wall_will_complete: bool
