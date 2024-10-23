@@ -160,8 +160,9 @@ class CannonRushManager(Manager, IManagerMediator):
         # protocol for getting the first cannon placed
         if not self.initial_cannon_placed:
             self.initial_cannon_placed = self.secure_initial_cannon()
-        else:
-            self.secure_high_ground()
+        elif not self.cannon_rush_complete:
+            if self.secure_high_ground():
+                self.cannon_rush_complete = True
 
     def run_custom_build_order(self) -> bool:
         """Run the build order from here rather than the BuildOrderRunner.
@@ -436,6 +437,10 @@ class CannonRushManager(Manager, IManagerMediator):
         -------
 
         """
+        # TODO: add sophistication to end of rush determination
+        if self.ai.structures(UnitID.PHOTONCANNON).amount >= 2:
+            return True
+
         if not self.high_ground_wall_id:
             if high_ground_cannon_location := (
                 self.wall_creation.building_placement.get_high_ground_point_near(
@@ -479,3 +484,5 @@ class CannonRushManager(Manager, IManagerMediator):
                 target=high_ground_wall.enclose_point,
             )
         )
+
+        return False
