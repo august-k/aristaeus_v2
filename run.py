@@ -58,13 +58,12 @@ def main():
         # ]
         # alternative example code if finding the map path is problematic
         map_list: List[str] = [
-            "GresvanAIE"
-            #     "BerlingradAIE",
-            #     "InsideAndOutAIE",
-            #     "MoondanceAIE",
-            #     "StargazersAIE",
-            #     "WaterfallAIE",
-            #     "HardwireAIE",
+            # "Equilibrium513AIE",
+            # "GoldenAura513AIE",
+            "Gresvan513AIE",
+            # "HardLead513AIE",
+            # "Oceanborn513AIE",
+            # "SiteDelta513AIE",
         ]
 
         random_race = random.choice([Race.Zerg, Race.Terran, Race.Protoss])
