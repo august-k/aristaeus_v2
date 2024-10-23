@@ -8,6 +8,7 @@ from sc2.unit import Unit
 
 from ares.behaviors.combat import CombatManeuver
 from ares.consts import ManagerName, ManagerRequestType, UnitRole
+from cython_extensions.general_utils import cy_pylon_matrix_covers
 
 from ares.managers.manager import Manager
 from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
@@ -261,7 +262,12 @@ class CannonRushManager(Manager, IManagerMediator):
         # override wall update if we can place a cannon
         if self.ai.tech_requirement_progress(
             UnitID.PHOTONCANNON
-        ) == 1 and self.ai.state.psionic_matrix.covers(self.initial_cannon):
+        ) == 1 and cy_pylon_matrix_covers(
+            self.initial_cannon,
+            self.manager_mediator.get_own_structures_dict[UnitID.PYLON],
+            self.ai.game_info.terrain_height.data_numpy,
+            1,
+        ):
             wall.set_next_building(
                 pos=self.initial_cannon,
                 type_id=UnitID.PHOTONCANNON,
@@ -463,7 +469,12 @@ class CannonRushManager(Manager, IManagerMediator):
         # override wall update if we can place a cannon
         if self.ai.tech_requirement_progress(
             UnitID.PHOTONCANNON
-        ) == 1 and self.ai.psionic_matrix_covers(high_ground_wall.enclose_point):
+        ) == 1 and cy_pylon_matrix_covers(
+            high_ground_wall.enclose_point,
+            self.manager_mediator.get_own_structures_dict[UnitID.PYLON],
+            self.ai.game_info.terrain_height.data_numpy,
+            1,
+        ):
             high_ground_wall.set_next_building(
                 pos=high_ground_wall.enclose_point,
                 type_id=UnitID.PHOTONCANNON,
