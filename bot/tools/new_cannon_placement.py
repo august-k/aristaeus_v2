@@ -16,7 +16,7 @@ from bot.consts import (
     SCORE,
     WEIGHT,
 )
-from bot.tools.grids import modify_two_by_two, modify_three_by_three
+from bot.tools.grids import modify_two_by_two
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.position import Point2
 
@@ -158,7 +158,7 @@ class WallCreation:
 
         # TODO: move these to the config or use function parameters
         self.blocking_building_weight = 1
-        self.non_blocking_building_weight = 2
+        self.non_blocking_building_weight = 1
         self.wall_grid_bound_size = 20
         self.terrain_weight = 1
 
@@ -239,7 +239,9 @@ class WallCreation:
         # try to find a start point for the wall since we don't have one yet
         if not wall_start_point:
             wall_start_point = self._calculate_start_point(
-                cannon_placement, cannon_grid, blacklist={cannon_placement}
+                cannon_placement,
+                self.map_data.get_pyastar_grid(),
+                blacklist={cannon_placement},
             )
 
         # only run pathfinding if we have a start point
@@ -276,27 +278,18 @@ class WallCreation:
             The wall start location, if one was found.
 
         """
-        # initialize necessary variables
         start = None
         if not blacklist:
             blacklist = set()
 
-        # ensure that positions in the blacklist can't be used
         if blacklist:
             for pos in blacklist:
-                grid[pos] = np.inf
+                # ensure the point isn't considered valid
+                grid[pos] = 1
 
-        # find points in the pathing grid that are part of the terrain
         point = (int(cannon_placement[0]), int(cannon_placement[1]))
-        disk = tuple(draw_circle(point, 8, shape=grid.shape))
-        target_weight_cond = np.logical_and(
-            np.abs(grid[disk])
-            # < max(self.blocking_building_weight + 1, self.terrain_weight),
-            < self.terrain_weight + 1,
-            grid[disk] < np.inf,
-        )
-
-        # pick the point closest to the cannon with the correct weight, if any exist
+        disk = tuple(draw_circle(point, 10, shape=grid.shape))
+        target_weight_cond = np.abs(grid[disk]) == np.inf
         if np.any(target_weight_cond):
             possible_points = np.column_stack(
                 (disk[0][target_weight_cond], disk[1][target_weight_cond])
@@ -750,7 +743,7 @@ class BuildingPlacement:
             # blocking = False
         return scores
 
-    def get_high_ground_point_near_position(
+    def get_high_ground_point_near(
         self, position: Point2, search_distance: float = 6.5
     ) -> Optional[Point2]:
         """Find some high ground near a cannon.
@@ -784,7 +777,6 @@ class BuildingPlacement:
         if np.any(target_weight_cond):
             # convolve the region to find valid building placements
             blocks, non_blocks = self.perform_convolutions(
-                start_position=position,
                 x_bound=(
                     int(position.x - search_distance),
                     int(position.x + search_distance),
