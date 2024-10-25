@@ -152,12 +152,14 @@ class CannonRushManager(Manager, IManagerMediator):
         for wall in self.walls.values():
             self.wall_creation.update_existing_wall(wall)
 
-        # protocol for getting the first cannon placed
-        if not self.initial_cannon_placed:
-            self.initial_cannon_placed = self.secure_initial_cannon()
-        elif not self.cannon_rush_complete:
-            if self.secure_high_ground():
-                self.cannon_rush_complete = True
+        if not self.cannon_rush_complete:
+            # we're still rushing
+            # protocol for getting the first cannon placed
+            if not self.initial_cannon_placed:
+                self.initial_cannon_placed = self.secure_initial_cannon()
+            if self.initial_cannon_placed or self.ai.minerals >= 250:
+                if self.secure_high_ground():
+                    self.cannon_rush_complete = True
 
     def run_custom_build_order(self) -> bool:
         """Run the build order from here rather than the BuildOrderRunner.
@@ -258,7 +260,7 @@ class CannonRushManager(Manager, IManagerMediator):
             Whether this step should be considered completed.
 
         """
-        if self.ai.structure_type_build_progress(UnitID.PHOTONCANNON) >= 0.75:
+        if self.ai.structure_type_build_progress(UnitID.PHOTONCANNON) >= 0.1:
             return True
 
         wall = self.walls[self.primary_wall_id]
