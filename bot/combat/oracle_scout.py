@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 from ares import ManagerMediator, UnitTreeQueryType
 from ares.behaviors.combat import CombatManeuver
 from ares.behaviors.combat.individual import PathUnitToTarget, UseAbility
-from cython_extensions.units_utils import cy_closest_to
 from ares.dicts.unit_data import UNIT_DATA
+from cython_extensions.units_utils import cy_closest_to
 from sc2.ids.ability_id import AbilityId
 from sc2.units import Units
 

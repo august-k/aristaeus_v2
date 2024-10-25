@@ -2,9 +2,12 @@ from typing import Optional
 
 from ares import AresBot, Hub, ManagerMediator
 from ares.behaviors.macro import Mining
-from ares.consts import UnitRole
+from ares.consts import UnitRole, UnitTreeQueryType
+from ares.managers.unit_memory_manager import UnitMemoryManager
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
+from sc2.position import Point2
 from sc2.unit import Unit
+from sc2.units import Units
 
 from bot.managers.cannon_rush_manager import CannonRushManager
 from bot.managers.combat_manager import CombatManager
@@ -17,6 +20,7 @@ class MyBot(AresBot):
     combat_manager: CombatManager
     oracle_manager: OracleManager
     production_manager: ProductionManager
+    unit_memory_manager: UnitMemoryManager
 
     def __init__(self, game_step_override: Optional[int] = None):
         """Initiate custom bot
