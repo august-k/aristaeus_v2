@@ -9,8 +9,8 @@ from sc2.position import Point2
 from sc2.unit import Unit
 from sc2.units import Units
 
+from bot.managers.cannon_rush_manager import CannonRushManager
 from bot.managers.combat_manager import CombatManager
-from bot.managers.new_cannon_rush_manager import CannonRushManager
 from bot.managers.oracle_manager import OracleManager
 from bot.managers.production_manager import ProductionManager
 
