@@ -1,25 +1,18 @@
 """Refactor of CannonRush Manager"""
-from typing import Dict, Set, TYPE_CHECKING, Any, Union, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 import numpy as np
+from ares.behaviors.combat import CombatManeuver
+from ares.behaviors.combat.individual import KeepUnitSafe, PathUnitToTarget
+from ares.consts import ManagerName, ManagerRequestType, UnitRole
+from ares.managers.manager import Manager
+from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
+from ares.managers.path_manager import MapData
+from cython_extensions.general_utils import cy_pylon_matrix_covers
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.position import Point2, Point3
 from sc2.unit import Unit
 
-from ares.behaviors.combat import CombatManeuver
-from ares.consts import ManagerName, ManagerRequestType, UnitRole
-from cython_extensions.general_utils import cy_pylon_matrix_covers
-
-from ares.managers.manager import Manager
-from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
-
-
-from ares.behaviors.combat.individual import (
-    KeepUnitSafe,
-    PathUnitToTarget,
-)
-
-from ares.managers.path_manager import MapData
 from bot.behaviors.construct_building import ConstructBuilding
 from bot.tools.new_cannon_placement import WallCreation, WallData
 
@@ -185,9 +178,14 @@ class CannonRushManager(Manager, IManagerMediator):
         # get our first pylon at home
         if not self.ai.structure_present_or_pending(UnitID.PYLON):
             if self.ai.minerals >= 25:
+                location = self.manager_mediator.request_building_placement(
+                    base_location=self.ai.start_location,
+                    structure_type=UnitID.PYLON,
+                    wall=True,
+                )
                 if tag := self.build_structure_at_home_ramp(
                     structure_type=UnitID.PYLON,
-                    location=list(self.ai.main_base_ramp.corner_depots)[0],
+                    location=location,
                     assign_to=self.cannon_placers,
                 ):
                     # assign this Probe to the primary wall
@@ -202,9 +200,14 @@ class CannonRushManager(Manager, IManagerMediator):
             # then build the forge
             else:
                 if self.ai.minerals >= 75:
+                    location = self.manager_mediator.request_building_placement(
+                        base_location=self.ai.start_location,
+                        structure_type=UnitID.FORGE,
+                        wall=True,
+                    )
                     self.build_structure_at_home_ramp(
                         structure_type=UnitID.FORGE,
-                        location=self.ai.main_base_ramp.barracks_in_middle,
+                        location=location,
                         assign_to=self.chaos_probes,
                     )
         return False
