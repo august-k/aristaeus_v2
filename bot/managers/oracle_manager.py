@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Dict, Set
 
 from ares import ManagerMediator
 from ares.consts import UnitRole, UnitTreeQueryType
-from cython_extensions.units_utils import cy_closest_to
 from ares.managers.manager import Manager
+from cython_extensions.units_utils import cy_closest_to
 from sc2.data import Race
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.position import Point2

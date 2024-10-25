@@ -1,5 +1,6 @@
 """Utility functions for grids."""
 from typing import Union
+
 import numpy as np
 from sc2.position import Point2
 
