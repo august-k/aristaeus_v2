@@ -1,11 +1,16 @@
 """Refactor of the CannonPlacement class."""
-from typing import Dict, List, Optional, Set, Tuple, Union, TYPE_CHECKING
 import json
 import uuid
 from collections import defaultdict
 from os import getcwd, path
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+from ares import AresBot, ManagerMediator
+from map_analyzer.MapData import MapData
+from map_analyzer.Pather import draw_circle
+from sc2.ids.unit_typeid import UnitTypeId as UnitID
+from sc2.position import Point2
 from scipy.signal import convolve2d
 
 from bot.consts import (
@@ -17,13 +22,6 @@ from bot.consts import (
     WEIGHT,
 )
 from bot.tools.grids import modify_two_by_two
-from sc2.ids.unit_typeid import UnitTypeId as UnitID
-from sc2.position import Point2
-
-from map_analyzer.MapData import MapData
-from map_analyzer.Pather import draw_circle
-
-from ares import AresBot, ManagerMediator
 
 
 class WallData:

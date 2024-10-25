@@ -1,5 +1,5 @@
+from math import acos, atan2, sqrt
 from typing import Optional, Tuple
-from math import atan2, sqrt, acos
 
 
 def get_angle_between_points(

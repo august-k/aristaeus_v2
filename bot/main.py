@@ -1,17 +1,16 @@
 from typing import Optional
 
-from sc2.position import Point2
-from sc2.units import Units
-
 from ares import AresBot, Hub, ManagerMediator
 from ares.behaviors.macro import Mining
 from ares.consts import UnitRole, UnitTreeQueryType
-from sc2.ids.unit_typeid import UnitTypeId as UnitID
-from sc2.unit import Unit
-
 from ares.managers.unit_memory_manager import UnitMemoryManager
-from bot.managers.new_cannon_rush_manager import CannonRushManager
+from sc2.ids.unit_typeid import UnitTypeId as UnitID
+from sc2.position import Point2
+from sc2.unit import Unit
+from sc2.units import Units
+
 from bot.managers.combat_manager import CombatManager
+from bot.managers.new_cannon_rush_manager import CannonRushManager
 from bot.managers.oracle_manager import OracleManager
 from bot.managers.production_manager import ProductionManager
 

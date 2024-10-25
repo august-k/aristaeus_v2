@@ -5,6 +5,7 @@ from os import getcwd, path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+from ares import ManagerMediator
 from map_analyzer import MapData
 from map_analyzer.Pather import draw_circle
 from sc2.bot_ai import BotAI
@@ -13,7 +14,6 @@ from sc2.position import Point2, Point3
 from sc2.unit import Unit
 from scipy.signal import convolve2d
 
-from ares import ManagerMediator
 from bot.consts import (
     BLOCKING,
     DESIRABILITY_KERNEL,

@@ -1,15 +1,14 @@
 """CombatBehavior that involves placing buildings."""
 from dataclasses import dataclass
 
-from sc2.ids.unit_typeid import UnitTypeId as UnitID
-from sc2.unit import Unit
-
 from ares import AresBot
 from ares.behaviors.combat.individual.combat_individual_behavior import (
     CombatIndividualBehavior,
 )
 from ares.consts import ID
 from ares.managers.manager_mediator import ManagerMediator
+from sc2.ids.unit_typeid import UnitTypeId as UnitID
+from sc2.unit import Unit
 
 
 @dataclass
