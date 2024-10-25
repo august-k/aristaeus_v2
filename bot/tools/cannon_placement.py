@@ -762,7 +762,7 @@ class BuildingPlacement:
 
         """
         grid = self.ai.game_info.terrain_height.data_numpy
-        point = (int(position[0]), int(position[1]))
+        point = (int(position[1]), int(position[0]))
 
         # get the target height (the height of the enemy main)
         target_height = self.ai.get_terrain_height(self.ai.enemy_start_locations[0])
@@ -792,12 +792,12 @@ class BuildingPlacement:
             # return a point if it's a valid placement
             # TODO: pick a point rather than returning the first one found
             possible_points = np.column_stack(
-                (disk[0][target_weight_cond], disk[1][target_weight_cond])
+                (disk[1][target_weight_cond], disk[0][target_weight_cond])
             )
-            for point in blocks:
-                if point in possible_points:
-                    return Point2(point)
-            for point in non_blocks:
-                if point in possible_points:
-                    return Point2(point)
+            for b_p in blocks:
+                if b_p in possible_points:
+                    return Point2(b_p)
+            for n_p in non_blocks:
+                if n_p in possible_points:
+                    return Point2(n_p)
         return None
