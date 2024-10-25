@@ -3,7 +3,7 @@ import json
 import uuid
 from collections import defaultdict
 from os import getcwd, path
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from ares import AresBot, ManagerMediator

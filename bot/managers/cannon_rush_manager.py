@@ -1,20 +1,25 @@
 """Handle Cannon Rush tasks."""
 
-from typing import Dict, Set, TYPE_CHECKING, Any, Union, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 import numpy as np
+from ares.behaviors.combat import CombatManeuver
+from ares.behaviors.combat.individual import (
+    AMove,
+    AttackTarget,
+    KeepUnitSafe,
+    PathUnitToTarget,
+)
+from ares.consts import ManagerName, ManagerRequestType, UnitRole, UnitTreeQueryType
+from ares.managers.manager import Manager
+from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
+from ares.managers.path_manager import MapData
+from cython_extensions.units_utils import cy_closest_to, cy_sorted_by_distance_to
 from sc2.ids.ability_id import AbilityId
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
 from sc2.position import Point2
 from sc2.unit import Unit
 from sc2.units import Units
-
-from ares.behaviors.combat import CombatManeuver
-from ares.consts import ManagerName, ManagerRequestType, UnitRole, UnitTreeQueryType
-from cython_extensions.units_utils import cy_closest_to, cy_sorted_by_distance_to
-from ares.managers.manager import Manager
-from ares.managers.manager_mediator import IManagerMediator, ManagerMediator
-from bot.tools.cannon_placement import CannonPlacement
 
 from bot.consts import (
     BLOCKING,
@@ -27,14 +32,7 @@ from bot.consts import (
     TYPE_ID,
     WEIGHT,
 )
-from ares.behaviors.combat.individual import (
-    KeepUnitSafe,
-    PathUnitToTarget,
-    AttackTarget,
-    AMove,
-)
-
-from ares.managers.path_manager import MapData
+from bot.tools.cannon_placement import CannonPlacement
 
 if TYPE_CHECKING:
     from ares import AresBot

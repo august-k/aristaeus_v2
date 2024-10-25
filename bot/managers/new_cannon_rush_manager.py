@@ -1,5 +1,5 @@
 """Refactor of CannonRush Manager"""
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from ares.behaviors.combat import CombatManeuver
@@ -131,20 +131,21 @@ class CannonRushManager(Manager, IManagerMediator):
             self.custom_build_order_complete = self.run_custom_build_order()
 
             grid = self.manager_mediator.get_ground_avoidance_grid
-            rusher_tags = self.manager_mediator.get_units_from_roles(
+            rushers = self.manager_mediator.get_units_from_roles(
                 roles=self.cannon_roles
             )
 
-            for worker in rusher_tags:
+            for worker in rushers:
                 # create and register a maneuver to keep this probe safe while
                 # pathing towards the initial cannon placement
-                self.ai.register_behavior(
-                    self.create_path_if_safe_maneuver(
-                        unit=worker,
-                        grid=grid,
-                        target=self.initial_cannon,
+                if worker.tag not in self.manager_mediator.get_building_tracker_dict:
+                    self.ai.register_behavior(
+                        self.create_path_if_safe_maneuver(
+                            unit=worker,
+                            grid=grid,
+                            target_position=self.initial_cannon,
+                        )
                     )
-                )
             return
 
         # update walls
@@ -276,13 +277,6 @@ class CannonRushManager(Manager, IManagerMediator):
                 type_id=UnitID.PHOTONCANNON,
                 wall_will_complete=False,
             )
-        # place the next building
-        self.manager_mediator.build_with_specific_worker(
-            worker=self.ai.unit_tag_dict[self.wall_to_probe[self.primary_wall_id]],
-            structure_type=wall.next_building_type,
-            pos=wall.next_building_location,
-            assign_role=False,
-        )
 
         avoidance_grid = self.manager_mediator.get_ground_avoidance_grid
         enemy_nat = self.manager_mediator.get_enemy_nat
@@ -292,7 +286,12 @@ class CannonRushManager(Manager, IManagerMediator):
             self.create_path_if_safe_maneuver(
                 unit=self.ai.unit_tag_dict[self.wall_to_probe[self.primary_wall_id]],
                 grid=avoidance_grid,
-                target=self.initial_cannon,
+                target_position=self.initial_cannon,
+                structure_commands=[
+                    wall.next_building_type,
+                    wall.next_building_location,
+                    False,
+                ],
             )
         )
 
@@ -300,7 +299,7 @@ class CannonRushManager(Manager, IManagerMediator):
         for unit in self.manager_mediator.get_units_from_role(role=self.chaos_probes):
             self.ai.register_behavior(
                 self.create_path_if_safe_maneuver(
-                    unit=unit, grid=avoidance_grid, target=enemy_nat
+                    unit=unit, grid=avoidance_grid, target_position=enemy_nat
                 )
             )
         return False
@@ -379,20 +378,30 @@ class CannonRushManager(Manager, IManagerMediator):
         for wall_id in to_remove:
             del self.walls[wall_id]
 
-    @staticmethod
     def create_path_if_safe_maneuver(
-        unit: Unit, grid: np.ndarray, target: Point2
+        self,
+        unit: Unit,
+        grid: np.ndarray,
+        target_position: Point2,
+        structure_commands: Optional[Tuple[UnitID, Point2, bool]] = None,
     ) -> CombatManeuver:
         """CombatManeuver for Probes to moving towards the cannon location if safe.
 
         Parameters
         ----------
         unit : Unit
-            The Probe being micro'd.
+            The unit to control
         grid : np.ndarray
-            Grid to use for pathing.
-        target : Point2
-            Where the Probe is going.
+            Pathing grid for avoidance
+        target_position : Point2
+            Where to send the Probe if not building
+        structure_commands : Optional[Tuple[UnitID, Point2, bool]]
+            UnitID
+                What building to construct
+            Point2
+                Where to place the building
+            bool
+                Whether to assign a new role per the BuildingManager
 
         Returns
         -------
@@ -402,15 +411,29 @@ class CannonRushManager(Manager, IManagerMediator):
         """
         probe_maneuver: CombatManeuver = CombatManeuver()
         probe_maneuver.add(KeepUnitSafe(unit=unit, grid=grid))
-        probe_maneuver.add(ConstructBuilding(unit=unit))
+        success_at_distance = (
+            0.1
+            if unit.tag not in self.manager_mediator.get_building_tracker_dict
+            else 4
+        )
         probe_maneuver.add(
             PathUnitToTarget(
                 unit=unit,
                 grid=grid,
-                target=target,
+                target=target_position,
                 sensitivity=1,
+                success_at_distance=success_at_distance,
             )
         )
+        if structure_commands is not None:
+            probe_maneuver.add(
+                ConstructBuilding(
+                    unit=unit,
+                    structure_type=structure_commands[0],
+                    pos=structure_commands[1],
+                    assign_role=structure_commands[2],
+                )
+            )
         return probe_maneuver
 
     def debug_coordinates(self):
@@ -484,18 +507,16 @@ class CannonRushManager(Manager, IManagerMediator):
                 wall_will_complete=False,
             )
 
-        self.manager_mediator.build_with_specific_worker(
-            worker=worker,
-            structure_type=high_ground_wall.next_building_type,
-            pos=high_ground_wall.next_building_location,
-            assign_role=False,
-        )
-
         self.ai.register_behavior(
             self.create_path_if_safe_maneuver(
                 worker,
                 self.manager_mediator.get_ground_avoidance_grid,
-                target=high_ground_wall.enclose_point,
+                target_position=high_ground_wall.enclose_point,
+                structure_commands=[
+                    high_ground_wall.next_building_type,
+                    high_ground_wall.next_building_location,
+                    False,
+                ],
             )
         )
 

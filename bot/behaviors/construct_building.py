@@ -5,9 +5,9 @@ from ares import AresBot
 from ares.behaviors.combat.individual.combat_individual_behavior import (
     CombatIndividualBehavior,
 )
-from ares.consts import ID
 from ares.managers.manager_mediator import ManagerMediator
 from sc2.ids.unit_typeid import UnitTypeId as UnitID
+from sc2.position import Point2
 from sc2.unit import Unit
 
 
@@ -23,10 +23,15 @@ class ConstructBuilding(CombatIndividualBehavior):
     """
 
     unit: Unit
+    structure_type: UnitID
+    pos: Point2
+    assign_role: bool
 
     def execute(self, ai: "AresBot", config: dict, mediator: ManagerMediator) -> bool:
-        tracker_dict = mediator.get_building_tracker_dict
-        if self.unit.tag in tracker_dict:
-            if ai.can_afford(tracker_dict[self.unit.tag][ID]):
-                return True
+        mediator.build_with_specific_worker(
+            worker=self.unit,
+            structure_type=self.structure_type,
+            pos=self.pos,
+            assign_role=self.assign_role,
+        )
         return False
