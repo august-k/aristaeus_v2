@@ -69,7 +69,8 @@ class CannonRushManager(Manager, IManagerMediator):
         self.cannon_roles = {self.cannon_placers, self.chaos_probes}
 
         # TODO: load based on map
-        self.initial_cannon = Point2((32, 99))
+        self.initial_cannon = Point2((168, 65))
+        # self.initial_cannon = Point2((32, 99))
 
     def initialise(self) -> None:
         self.map_data: MapData = self.manager_mediator.get_map_data_object
@@ -357,6 +358,8 @@ class CannonRushManager(Manager, IManagerMediator):
         # no longer a primary wall since this one is being removed
         if wall.wall_id == self.primary_wall_id:
             self.primary_wall_id = None
+        elif wall.wall_id == self.high_ground_wall_id:
+            self.high_ground_wall_id = None
 
         del self.walls[wall.wall_id]
 
@@ -490,6 +493,8 @@ class CannonRushManager(Manager, IManagerMediator):
                     role=self.chaos_probes
                 ).first
                 self.wall_to_probe[self.high_ground_wall_id] = worker.tag
+            else:
+                return
 
         high_ground_wall = self.walls[self.high_ground_wall_id]
         worker = self.ai.unit_tag_dict[self.wall_to_probe[self.high_ground_wall_id]]

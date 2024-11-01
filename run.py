@@ -74,7 +74,8 @@ def main():
                 bot1,
                 Computer(random_race, Difficulty.VeryHard, ai_build=AIBuild.Macro),
             ],
-            random_seed=2,
+            random_seed=2486,
+            # random_seed=2,
             realtime=False,
         )
 
